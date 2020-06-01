@@ -222,7 +222,7 @@ func TestParseXml(t *testing.T) {
 </PBDailyBonusList>`
 
 	// Then encode it in JSON
-	res, err := Convert(strings.NewReader(s))
+	res, err := ConvertWithSkipLvl(strings.NewReader(s), 2)
 	if err != nil {
 		panic(err)
 	}

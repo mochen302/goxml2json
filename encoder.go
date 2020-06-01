@@ -13,11 +13,17 @@ type Encoder struct {
 	contentPrefix   string
 	attributePrefix string
 	tc              encoderTypeConverter
+	maxSkipLvl      int
 }
 
 // NewEncoder returns a new encoder that writes to w.
 func NewEncoder(w io.Writer, plugins ...plugin) *Encoder {
-	e := &Encoder{w: w, contentPrefix: contentPrefix, attributePrefix: attrPrefix}
+	return NewEncoderWithSkipLv(w, 0, plugins...)
+}
+
+// NewEncoder returns a new encoder that writes to w.
+func NewEncoderWithSkipLv(w io.Writer, maxSkipLvl int, plugins ...plugin) *Encoder {
+	e := &Encoder{w: w, contentPrefix: contentPrefix, attributePrefix: attrPrefix, maxSkipLvl: maxSkipLvl}
 	for _, p := range plugins {
 		e = p.AddToEncoder(e)
 	}
@@ -33,7 +39,7 @@ func (enc *Encoder) Encode(root *Node) error {
 		return nil
 	}
 
-	enc.err = enc.format(root, 0)
+	enc.err = enc.format(root, 0, enc.maxSkipLvl)
 
 	// Terminate each value with a newline.
 	// This makes the output look a little nicer
@@ -46,12 +52,17 @@ func (enc *Encoder) Encode(root *Node) error {
 	return enc.err
 }
 
-func (enc *Encoder) format(n *Node, lvl int) error {
+func (enc *Encoder) format(n *Node, lvl, maxSkipLvl int) error {
+	skip := lvl < maxSkipLvl
+
 	if n.IsComplex() {
-		enc.write("{")
+
+		if !skip {
+			enc.write("{")
+		}
 
 		// Add data as an additional attibute (if any)
-		if len(n.Data) > 0 {
+		if !skip && len(n.Data) > 0 {
 			enc.write("\"")
 			enc.write(enc.contentPrefix)
 			enc.write("content")
@@ -63,15 +74,17 @@ func (enc *Encoder) format(n *Node, lvl int) error {
 		i := 0
 		tot := len(n.Children)
 		for label, children := range n.Children {
-			enc.write("\"")
-			enc.write(label)
-			enc.write("\": ")
+			if !skip {
+				enc.write("\"")
+				enc.write(label)
+				enc.write("\": ")
+			}
 
 			if n.ChildrenAlwaysAsArray || len(children) > 1 {
 				// Array
 				enc.write("[")
 				for j, c := range children {
-					enc.format(c, lvl+1)
+					enc.format(c, lvl+1, maxSkipLvl)
 
 					if j < len(children)-1 {
 						enc.write(", ")
@@ -80,16 +93,19 @@ func (enc *Encoder) format(n *Node, lvl int) error {
 				enc.write("]")
 			} else {
 				// Map
-				enc.format(children[0], lvl+1)
+				enc.format(children[0], lvl+1, maxSkipLvl)
 			}
 
-			if i < tot-1 {
+			if !skip && i < tot-1 {
 				enc.write(", ")
 			}
 			i++
 		}
 
-		enc.write("}")
+		if !skip {
+			enc.write("}")
+		}
+
 	} else {
 		s := sanitiseString(n.Data)
 		if enc.tc == nil {

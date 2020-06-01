@@ -1,6 +1,7 @@
 package xml2json
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -199,4 +200,34 @@ func TestConvertISO(t *testing.T) {
 
 	// Assertion
 	assert.JSONEq(string(expected), res.String(), "Drumroll")
+}
+
+func TestParseXml(t *testing.T) {
+	s := `<?xml version="1.0" encoding="utf-8"?>
+<PBDailyBonusList>
+  <bonus_infos id="1" probability="100">
+    <bonus_day>300001</bonus_day>
+    <bonus_day>300002</bonus_day>
+    <bonus_day>300003</bonus_day>
+    <bonus_day>300004</bonus_day>
+    <bonus_day>300005</bonus_day>
+  </bonus_infos>
+  <bonus_infos id="2" probability="0">
+    <bonus_day>300004</bonus_day>
+    <bonus_day>300005</bonus_day>
+    <bonus_day>300006</bonus_day>
+    <bonus_day>300001</bonus_day>
+    <bonus_day>300007</bonus_day>
+  </bonus_infos>
+</PBDailyBonusList>`
+
+	// Then encode it in JSON
+	res, err := Convert(strings.NewReader(s))
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(s)
+	fmt.Println("<->")
+	fmt.Println(res)
 }
